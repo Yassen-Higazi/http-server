@@ -1,12 +1,12 @@
+use crate::constants::CRLF;
 use std::collections::HashMap;
-use crate::constants::{CRLF};
 
 #[derive(Debug, Clone)]
 pub struct Request {
     pub url: String,
-    pub host: String,
     pub method: String,
     pub protocol: String,
+    pub host: Option<String>,
     pub protocol_version: String,
     pub query: HashMap<String, String>,
     pub params: HashMap<String, String>,
@@ -17,10 +17,10 @@ pub struct Request {
 
 impl Request {
     pub fn new(request: String) -> Self {
-        let mut params: HashMap<String, String> = HashMap::new();
+        let params: HashMap<String, String> = HashMap::new();
         let mut headers: HashMap<String, String> = HashMap::new();
 
-        let mut request_parts = request.split(CRLF).collect::<Vec<&str>>();
+        let request_parts = request.split(CRLF).collect::<Vec<&str>>();
 
         // parse first part
         let first_line = request_parts[0];
@@ -31,7 +31,6 @@ impl Request {
         let mut i = 1;
 
         while i < request_parts.len() && request_parts[i] != "" {
-
             let header_parts: Vec<&str> = request_parts[i].split(": ").collect();
 
             let header_name = header_parts[0].to_string();
@@ -44,14 +43,17 @@ impl Request {
         }
 
         // parse body
-        let body_str: &str = request_parts[i+1];
+        let body_str: &str = request_parts[i + 1];
 
         let body = body_str.to_string();
 
-        let mut final_host = headers.get("Host").unwrap().clone();
+        let mut final_host = match headers.get("Host") {
+            None => None,
+            Some(host) => Some(host.clone()),
+        };
 
         if !host.is_empty() {
-            final_host = host;
+            final_host = Some(host);
         };
 
         Self {
@@ -90,20 +92,20 @@ impl Request {
     }
 
     fn parse_request_target(request_target: &str) -> (String, HashMap<String, String>, String) {
-        let mut host = String::new();
+        let host = String::new();
 
         let mut query: HashMap<String, String> = HashMap::new();
 
         let full_url = request_target.trim().to_string();
 
-        let mut url_splits = full_url.split('?').collect::<Vec<&str>>();
+        let url_splits = full_url.split('?').collect::<Vec<&str>>();
 
         let url = url_splits[0].to_string();
 
         // TODO: handle absolute form
         // let is_absolute_form = url.starts_with("http://");
 
-        if (url_splits.len() > 1) {
+        if url_splits.len() > 1 {
             let query_string = url_splits[1].to_string();
 
             if !query_string.is_empty() {
