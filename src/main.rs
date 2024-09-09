@@ -2,9 +2,12 @@ use std::io::{Read, Write};
 #[allow(unused_imports)]
 use std::net::TcpListener;
 use std::vec;
+use crate::request::Request;
+use crate::response::Response;
 
 mod request;
 mod constants;
+mod response;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
@@ -22,15 +25,24 @@ fn main() {
 
                 let request_str = String::from_utf8_lossy(&buffer).to_string();
 
-                let request = request::Request::new(request_str);
+                let request = Request::new(request_str);
+                let mut response = Response::from(&request);
 
-                let mut reply = String::from("HTTP/1.1 200 OK\r\n\r\n");
+                let mut body = String::from("");
 
-                if request.url != "/" {
-                    reply = String::from("HTTP/1.1 404 Not Found\r\n\r\n");
+                if request.url == "/" {
+                    response.status = 200;
+                    response.status_name = String::from("OK");
+                } else if request.url.starts_with("/echo")  {
+                    body = request.url.split("/").collect::<Vec<&str>>()[2..].join("");
+                } else {
+                    response.status = 404;
+                    response.status_name = String::from("Not Found");
                 }
 
-                _stream.write_all(reply.as_bytes()).expect("Failed to send Response to client");
+                response.set_body(body, None);
+
+                _stream.write_all(&*response.http()).expect("Failed to send Response to client");
             }
             Err(e) => {
                 println!("error: {}", e);

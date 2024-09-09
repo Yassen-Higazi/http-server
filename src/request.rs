@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::constants::{CRLF};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Request {
     pub url: String,
     pub host: String,
