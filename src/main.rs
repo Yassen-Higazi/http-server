@@ -33,8 +33,14 @@ fn main() {
                 if request.url == "/" {
                     response.status = 200;
                     response.status_name = String::from("OK");
-                } else if request.url.starts_with("/echo")  {
+                } else if request.url.starts_with("/echo") {
                     body = request.url.split("/").collect::<Vec<&str>>()[2..].join("");
+                } else if request.url == "/user-agent" {
+                    let agent = request.headers.get("User-Agent");
+
+                    if agent.is_some() {
+                        body = agent.unwrap().to_string();
+                    }
                 } else {
                     response.status = 404;
                     response.status_name = String::from("Not Found");
