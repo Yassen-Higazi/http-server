@@ -1,6 +1,5 @@
 use crate::request::Request;
 use crate::response::Response;
-use crate::thread_pool::ThreadPool;
 use std::io::{Read, Write};
 #[allow(unused_imports)]
 use std::net::TcpListener;
@@ -12,25 +11,28 @@ mod constants;
 mod response;
 mod thread_pool;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
 
     println!("Listening on {}", listener.local_addr().unwrap());
 
-    let pool = ThreadPool::new(100);
+    // let pool = ThreadPool::new(100);
 
     loop {
         for stream in listener.incoming() {
             let mut stream = stream.unwrap();
 
-            pool.execute(move || {
-                handle_connection(&mut stream);
-            });
+            tokio::spawn(async move { handle_connection(&mut stream).await; });
+
+            // pool.execute(move || {
+            //     handle_connection(&mut stream);
+            // });
         }
     }
 }
 
-fn handle_connection(_stream: &mut TcpStream) {
+async fn handle_connection(_stream: &mut TcpStream) {
     println!("accepted new connection from {}", _stream.peer_addr().unwrap());
 
     let mut buffer = vec![0u8; 1024];
