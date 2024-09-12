@@ -1,20 +1,30 @@
-use crate::request::Request;
-use crate::response::{HttpCode, Response};
-use std::fmt::Display;
+use regex::Regex;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+
+use crate::request::Request;
+use crate::response::{HttpCode, Response};
+use crate::router::{RequestHandler, Router};
 
 pub struct HttpServer {
     pub port: u16,
     pub host: String,
+    router: Router,
 }
 
 impl HttpServer {
     pub fn new(host: &str, port: u16) -> HttpServer {
         Self {
             port,
+            router: Router::new(),
             host: host.to_string(),
         }
+    }
+
+    pub fn define_route(&self, path: &str, handle: RequestHandler) -> &Self {
+        self.router.define_route(path.to_string(), handle);
+
+        self
     }
 
     pub fn listen(self) {
@@ -33,14 +43,17 @@ impl HttpServer {
                 //     HttpServer::handle_connection(&mut stream)
                 // })
 
-                tokio::spawn(async move { handle_connection(&mut stream).await; });
+                let router = self.router.clone();
+
+                tokio::spawn(async move { handle_connection(&mut stream, router).await; });
             }
         }
     }
 }
 
-async fn handle_connection(_stream: &mut TcpStream) {
+async fn handle_connection(_stream: &mut TcpStream, router: Router) {
     println!("accepted new connection from {}", _stream.peer_addr().unwrap());
+    let params_regex = Regex::new(r":([a-z0-9_]+):").unwrap();
 
     let mut buffer = vec![0u8; 1024];
 
@@ -51,26 +64,52 @@ async fn handle_connection(_stream: &mut TcpStream) {
     let is_http = request_str.contains("HTTP/1.");
 
     if is_http {
-        let request = Request::new(request_str);
-        let mut response = Response::from(&request);
+        let mut request = Request::new(request_str);
 
-        let mut body = String::from("");
+        let names = request.url.split(":").filter(|c| !c.contains("/")).collect::<Vec<&str>>();
+        
+        println!("Names: {:?}", names);
 
-        if request.url == "/" {
-            response.status = HttpCode::Ok
-        } else if request.url.starts_with("/echo") {
-            body = request.url.split("/").collect::<Vec<&str>>()[2..].join("");
-        } else if request.url == "/user-agent" {
-            let agent = request.headers.get("User-Agent");
-
-            if agent.is_some() {
-                body = agent.unwrap().to_string();
-            }
-        } else {
-            response.status = HttpCode::NotFound;
+        for (i, value) in params_regex.captures_iter(&*request.url).enumerate() {
+            println!("Values: {}-{:?}", i, value);
+            request.params.insert(names.get(i).unwrap().to_string(), value[1].trim().to_string());
         }
 
-        response.write_to(_stream, Some(body));
+        println!("Request: {:?}", request.params);
+
+        let handler = router.get_handler(request.url.as_str());
+
+        let mut response = match handler {
+            None => {
+                let mut res = Response::new("HTTP".to_string(), "1.1".to_string());
+
+                res.status = HttpCode::NotFound;
+
+                res
+            }
+
+            Some(handler) => {
+                let result = handler(&request);
+
+                match result {
+                    Ok(res) => {
+                        res
+                    }
+
+                    Err(err) => {
+                        eprintln!("{}", err);
+
+                        let mut res = Response::new("HTTP".to_string(), "1.1".to_string());
+
+                        res.status = HttpCode::InternalServerError;
+
+                        res
+                    }
+                }
+            }
+        };
+
+        response.write_to(_stream, None);
 
         return;
     }

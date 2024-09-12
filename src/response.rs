@@ -20,6 +20,7 @@ impl HttpCode {
     }
 }
 
+#[derive(Debug)]
 pub enum ContentType {
     TextPlain,
 }
@@ -50,7 +51,10 @@ pub struct Response {
 impl Response {
     pub fn new(protocol: String, protocol_version: String) -> Response {
         let body = String::new();
-        let headers = HashMap::new();
+        let mut headers = HashMap::new();
+
+        headers.insert("Content-Length".to_string(), "0".to_string());
+        headers.insert("Content-Type".to_string(), ContentType::TextPlain.to_string());
 
         Self {
             body,
@@ -70,7 +74,7 @@ impl Response {
         stream.write_all(&*self.to_http_format()).expect("Failed to send Response to client");
     }
 
-    pub fn set_body(&mut self, body: String, content_type_option: Option<String>) {
+    pub fn set_body(&mut self, body: String, content_type_option: Option<ContentType>) {
         self.body = body;
 
         let content_length = self.body.len();
@@ -78,8 +82,15 @@ impl Response {
 
         self.set_header(content_length_name, content_length.to_string());
 
-        let mut content_type = ContentType::TextPlain;
         let content_type_name = String::from("Content-Type");
+        let content_type = match content_type_option {
+            None => {
+                ContentType::TextPlain
+            }
+            Some(ct) => {
+                ct
+            }
+        };
 
         self.set_header(content_type_name, content_type.to_string());
     }
