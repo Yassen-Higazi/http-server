@@ -1,26 +1,73 @@
-use std::collections::HashMap;
 use crate::request::Request;
+use std::collections::HashMap;
+use std::fmt::Display;
+use std::io::Write;
+use std::net::TcpStream;
+
+pub enum HttpCode {
+    Ok,
+    NotFound,
+    InternalServerError,
+}
+
+impl HttpCode {
+    pub fn to_status_line(&self) -> &str {
+        match self {
+            HttpCode::Ok => "200 OK",
+            HttpCode::NotFound => "404 Not Found",
+            HttpCode::InternalServerError => "500 Internal Server Error",
+        }
+    }
+}
+
+pub enum ContentType {
+    TextPlain,
+}
+
+impl ContentType {
+    pub fn text(&self) -> &str {
+        match self {
+            ContentType::TextPlain => "text/plain",
+        }
+    }
+}
+
+impl Display for ContentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text().to_string())
+    }
+}
 
 pub struct Response {
-    pub status: u16,
     pub body: String,
-    pub request: Request,
-    pub status_name: String,
+    pub status: HttpCode,
+    pub protocol: String,
+    pub protocol_version: String,
+    pub content_type: ContentType,
     pub headers: HashMap<String, String>,
 }
 
 impl Response {
-    pub fn new(request: &Request) -> Response {
+    pub fn new(protocol: String, protocol_version: String) -> Response {
         let body = String::new();
         let headers = HashMap::new();
 
         Self {
             body,
             headers,
-            status: 200,
-            request: request.clone(),
-            status_name: String::from("OK"),
+            protocol,
+            protocol_version,
+            status: HttpCode::Ok,
+            content_type: ContentType::TextPlain,
         }
+    }
+
+    pub fn write_to(&mut self, stream: &mut TcpStream, body: Option<String>) {
+        if body.is_some() {
+            self.set_body(body.unwrap(), None);
+        }
+
+        stream.write_all(&*self.to_http_format()).expect("Failed to send Response to client");
     }
 
     pub fn set_body(&mut self, body: String, content_type_option: Option<String>) {
@@ -31,14 +78,10 @@ impl Response {
 
         self.set_header(content_length_name, content_length.to_string());
 
-        let mut content_type = String::from("text/plain");
+        let mut content_type = ContentType::TextPlain;
         let content_type_name = String::from("Content-Type");
 
-        if !content_type_option.is_none() {
-            content_type = content_type_option.unwrap();
-        }
-
-        self.set_header(content_type_name, content_type);
+        self.set_header(content_type_name, content_type.to_string());
     }
 
     fn set_header(&mut self, header_name: String, header_value: String) {
@@ -54,10 +97,10 @@ impl Response {
         self.headers.insert(header_name, header_value);
     }
 
-    pub fn http(&self) -> Vec<u8> {
+    pub fn to_http_format(&self) -> Vec<u8> {
         let mut res = String::new();
 
-        res.push_str(&format!("{}/{} {} {}\r\n", self.request.protocol, self.request.protocol_version, self.status, self.status_name));
+        res.push_str(&format!("{}/{} {}\r\n", self.protocol, self.protocol_version, self.status.to_status_line()));
 
         for (key, value) in &self.headers {
             res.push_str(&format!("{}: {}\r\n", key, value));
@@ -71,8 +114,8 @@ impl Response {
     }
 }
 
-impl From<&Request> for  Response {
+impl From<&Request> for Response {
     fn from(req: &Request) -> Self {
-        Response::new(req)
+        Response::new(req.protocol.clone(), req.protocol_version.clone())
     }
 }

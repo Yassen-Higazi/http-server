@@ -26,7 +26,7 @@ type Job = Box<dyn FnBox + Send + 'static>;
 impl ThreadPool {
     pub fn new(size: usize) -> ThreadPool {
         assert!(size > 0);
-        assert!(size <= 100);
+        assert!(size <= 1000);
 
         let (sender, receiver) = mpsc::channel();
 
@@ -91,7 +91,7 @@ impl Worker {
 
                         job.call_box();
                     }
-                    
+
                     Message::Terminate => {
                         println!("Worker {} was told to terminate.", id);
 
