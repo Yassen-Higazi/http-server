@@ -70,10 +70,10 @@ async fn main() {
 
                 println!("{:?}", file_path);
 
-                let content = match std::fs::read_to_string(file_path) {
+                match std::fs::read_to_string(file_path) {
                     Ok(content) => {
                         response.status = HttpCode::Ok;
-                        content
+                        response.set_body(content, Some(ContentType::OctetStream));
                     }
 
                     Err(err) => {
@@ -83,19 +83,22 @@ async fn main() {
 
                                 let message = format!("File not found: {}", filename);
 
-                                String::from("{ \"message\": \"".to_string() + message.as_str() + "\" }")
+                                let content = String::from("{ \"message\": \"".to_string() + message.as_str() + "\" }");
+
+                                response.set_json_body(content);
                             }
                             _ => {
                                 eprintln!("{:?}", err);
 
                                 response.status = HttpCode::InternalServerError;
-                                String::from("{ \"message\": \"Internal Server Error\" }".to_string())
+
+                                let content = String::from("{ \"message\": \"Internal Server Error\" }".to_string());
+
+                                response.set_json_body(content);
                             }
                         }
                     }
                 };
-
-                response.set_body(content, Some(ContentType::OctetStream));
             } else {
                 response.set_body(String::from("{ \"message\": \"Param filename is required\" }"), None);
                 response.status = HttpCode::BadRequest;

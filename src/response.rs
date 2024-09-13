@@ -82,6 +82,10 @@ impl Response {
         stream.write_all(&*self.to_http_format()).expect("Failed to send Response to client");
     }
 
+    pub fn set_json_body(&mut self, body: String) {
+        self.set_body(body, Some(ContentType::Json))
+    }
+
     pub fn set_body(&mut self, body: String, content_type_option: Option<ContentType>) {
         self.body = body;
 
