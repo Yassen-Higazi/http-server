@@ -53,7 +53,6 @@ impl HttpServer {
 
 async fn handle_connection(_stream: &mut TcpStream, router: Router) {
     println!("accepted new connection from {}", _stream.peer_addr().unwrap());
-    let params_regex = Regex::new(r":([a-z0-9_]+):").unwrap();
 
     let mut buffer = vec![0u8; 1024];
 
@@ -66,18 +65,7 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router) {
     if is_http {
         let mut request = Request::new(request_str);
 
-        let names = request.url.split(":").filter(|c| !c.contains("/")).collect::<Vec<&str>>();
-        
-        println!("Names: {:?}", names);
-
-        for (i, value) in params_regex.captures_iter(&*request.url).enumerate() {
-            println!("Values: {}-{:?}", i, value);
-            request.params.insert(names.get(i).unwrap().to_string(), value[1].trim().to_string());
-        }
-
-        println!("Request: {:?}", request.params);
-
-        let handler = router.get_handler(request.url.as_str());
+        let (handler, mut params) = router.get_handler(request.url.as_str());
 
         let mut response = match handler {
             None => {
@@ -89,6 +77,23 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router) {
             }
 
             Some(handler) => {
+
+                for (key, position) in params {
+
+                    let mut param = String::new();
+
+                    for (i, char) in request.url.chars().enumerate() {
+                        if i as i32 >= position {
+                            if char == '/' { break; }
+
+                            param.push(char);
+                        }
+
+                    }
+
+                    request.params.insert(key.clone(), param);
+                }
+
                 let result = handler(&request);
 
                 match result {
