@@ -103,6 +103,12 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router, options: Opt
             }
         };
 
+        if let Some(compression) = request.headers.get("Accept-Encoding") {
+            if compression.contains("gzip") {
+                response.set_header("Content-Encoding".to_string(), "gzip".to_string());
+            }
+        }
+
         response.write_to(_stream, None);
 
         return;
