@@ -7,6 +7,7 @@ use std::net::TcpStream;
 pub enum HttpCode {
     Ok,
     NotFound,
+    BadRequest,
     InternalServerError,
 }
 
@@ -15,6 +16,7 @@ impl HttpCode {
         match self {
             HttpCode::Ok => "200 OK",
             HttpCode::NotFound => "404 Not Found",
+            HttpCode::BadRequest => "400 Bad Request",
             HttpCode::InternalServerError => "500 Internal Server Error",
         }
     }

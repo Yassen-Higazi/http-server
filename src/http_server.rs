@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
@@ -77,9 +76,7 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router) {
             }
 
             Some(handler) => {
-
                 for (key, position) in params {
-
                     let mut param = String::new();
 
                     for (i, char) in request.url.chars().enumerate() {
@@ -88,7 +85,6 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router) {
 
                             param.push(char);
                         }
-
                     }
 
                     request.params.insert(key.clone(), param);

@@ -39,14 +39,17 @@ async fn main() {
 
             Ok(response)
         })
-        .define_route("/echo/:content:", |r| {
-            let mut response = Response::from(r);
+        .define_route("/echo/:content", |req| {
+            let mut response = Response::from(req);
 
-            println!("Params: {:?}", r.params);
+            if let Some(content) = req.params.get("content") {
+                response.set_body(content.clone(), None);
+                response.status = HttpCode::Ok;
 
-            response.set_body("Hello, World!".to_string(), None);
-
-            response.status = HttpCode::Ok;
+            } else {
+                response.set_body(String::from("{ \"message\": \"Param content is required\" }"), None);
+                response.status = HttpCode::BadRequest;
+            }
 
             Ok(response)
         });

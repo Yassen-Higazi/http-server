@@ -1,8 +1,9 @@
 use crate::request::Request;
 use crate::response::Response;
-use regex::{Match, Regex};
-use std::collections::HashMap;
+
+use regex::Regex;
 use std::error::Error;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 pub type RequestHandler = fn(&Request) -> Result<Response, Box<dyn Error>>;
