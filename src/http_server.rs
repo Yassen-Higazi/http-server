@@ -1,13 +1,13 @@
 use crate::options::Options;
 use crate::request::Request;
 use crate::response::{HttpCode, Response};
-use crate::router::{RequestHandler, Router};
+use crate::router::Router;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
 pub struct HttpServer {
-    router: Router,
     options: Options,
+    pub router: Router,
 }
 
 impl HttpServer {
@@ -16,12 +16,6 @@ impl HttpServer {
             options,
             router: Router::new(),
         }
-    }
-
-    pub fn define_route(&self, path: &str, handle: RequestHandler) -> &Self {
-        self.router.define_route(path.to_string(), handle);
-
-        self
     }
 
     pub fn listen(self) {
@@ -54,16 +48,16 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router, options: Opt
 
     let mut buffer = vec![0u8; 1024];
 
-    _stream.read(&mut buffer).expect("Could not read client request");
+    let bits_read = _stream.read(&mut buffer).expect("Could not read client request");
 
-    let request_str = String::from_utf8_lossy(&buffer).to_string();
+    let request_str = String::from_utf8_lossy(&&buffer[0..bits_read]).to_string();
 
     let is_http = request_str.contains("HTTP/1.");
 
     if is_http {
         let mut request = Request::new(request_str, options);
 
-        let (handler, params) = router.get_handler(request.url.as_str());
+        let (handler, params) = router.get_handler(&request.method, request.url.as_str());
 
         let mut response = match handler {
             None => {

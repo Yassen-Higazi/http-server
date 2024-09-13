@@ -6,6 +6,7 @@ use std::net::TcpStream;
 
 pub enum HttpCode {
     Ok,
+    Created,
     NotFound,
     BadRequest,
     InternalServerError,
@@ -18,6 +19,7 @@ impl HttpCode {
             HttpCode::NotFound => "404 Not Found",
             HttpCode::BadRequest => "400 Bad Request",
             HttpCode::InternalServerError => "500 Internal Server Error",
+            HttpCode::Created => "201 Created",
         }
     }
 }
@@ -94,15 +96,13 @@ impl Response {
 
         self.set_header(content_length_name, content_length.to_string());
 
+        let content_type = content_type_option.unwrap_or_else(|| ContentType::TextPlain);
+
+        self.set_content_type(content_type);
+    }
+
+    pub fn set_content_type(&mut self, content_type: ContentType) {
         let content_type_name = String::from("Content-Type");
-        let content_type = match content_type_option {
-            None => {
-                ContentType::TextPlain
-            }
-            Some(ct) => {
-                ct
-            }
-        };
 
         self.set_header(content_type_name, content_type.to_string());
     }

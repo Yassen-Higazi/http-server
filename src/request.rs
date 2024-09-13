@@ -1,14 +1,61 @@
 use crate::constants::CRLF;
 use crate::options::Options;
 use std::collections::HashMap;
+use std::fmt::Display;
+
+#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+pub enum HTTPMethod {
+    GET,
+    POST,
+    PUT,
+    PATCH,
+    DELETE,
+    OPTIONS,
+    HEAD,
+}
+
+impl HTTPMethod {
+    fn text(&self) -> &'static str {
+        match self {
+            HTTPMethod::GET => "GET",
+            HTTPMethod::PUT => "PUT",
+            HTTPMethod::POST => "POST",
+            HTTPMethod::HEAD => "HEAD",
+            HTTPMethod::PATCH => "PATCH",
+            HTTPMethod::DELETE => "DELETE",
+            HTTPMethod::OPTIONS => "OPTIONS",
+        }
+    }
+}
+
+impl Display for HTTPMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.text().to_string())
+    }
+}
+
+impl From<&str> for HTTPMethod {
+    fn from(value: &str) -> Self {
+        match value {
+            "GET" => HTTPMethod::GET,
+            "PUT" => HTTPMethod::PUT,
+            "POST" => HTTPMethod::POST,
+            "HEAD" => HTTPMethod::HEAD,
+            "PATCH" => HTTPMethod::PATCH,
+            "DELETE" => HTTPMethod::DELETE,
+            "OPTIONS" => HTTPMethod::OPTIONS,
+            _ => panic!("Invalid HTTP method"),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Request {
     pub url: String,
-    pub method: String,
     pub protocol: String,
-    pub options: Options,
+    pub method: HTTPMethod,
     pub host: Option<String>,
+    pub server_options: Options,
     pub protocol_version: String,
     pub query: HashMap<String, String>,
     pub params: HashMap<String, String>,
@@ -47,7 +94,7 @@ impl Request {
         // parse body
         let body_str: &str = request_parts[i + 1];
 
-        let body = body_str.to_string();
+        let body = body_str.trim().to_string();
 
         let mut final_host = match headers.get("Host") {
             None => None,
@@ -63,12 +110,12 @@ impl Request {
             body,
             query,
             params,
-            method,
             headers,
-            options,
             protocol,
             protocol_version,
             host: final_host,
+            server_options: options,
+            method: HTTPMethod::from(method.as_str()),
         }
     }
 

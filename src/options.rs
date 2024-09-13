@@ -10,6 +10,6 @@ pub struct Options {
     #[arg(short, long, default_value_t = 4221)]
     pub port: u16,
 
-    #[arg(short = 'd', long = "directory", default_value = "/temp")]
+    #[arg(short = 'd', long = "directory", default_value = "/tmp")]
     pub files_directory: String,
 }

@@ -1,4 +1,4 @@
-use crate::request::Request;
+use crate::request::{HTTPMethod, Request};
 use crate::response::Response;
 
 use regex::Regex;
@@ -8,14 +8,14 @@ use std::sync::{Arc, RwLock};
 
 pub type RequestHandler = fn(&Request) -> Result<Response, Box<dyn Error>>;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct TrieNode {
     params: RwLock<HashMap<String, i32>>,
-    handler: RwLock<Option<RequestHandler>>,
     children: RwLock<HashMap<String, Arc<TrieNode>>>,
+    handler: RwLock<HashMap<String, RequestHandler>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Router {
     root: Arc<TrieNode>,
     params_regex: Arc<Regex>,
@@ -29,7 +29,35 @@ impl Router {
         }
     }
 
-    pub fn define_route(&self, mut path: String, handler: RequestHandler) {
+    pub fn get(&self, path: &str, handler: RequestHandler) -> &Router {
+        self.define_route(&HTTPMethod::GET, path.to_string(), handler)
+    }
+
+    pub fn post(&self, path: &str, handler: RequestHandler) -> &Router {
+        self.define_route(&HTTPMethod::POST, path.to_string(), handler)
+    }
+
+    pub fn put(&self, path: &str, handler: RequestHandler) -> &Router {
+        self.define_route(&HTTPMethod::PUT, path.to_string(), handler)
+    }
+
+    pub fn patch(&self, path: &str, handler: RequestHandler) -> &Router {
+        self.define_route(&HTTPMethod::PATCH, path.to_string(), handler)
+    }
+
+    pub fn delete(&self, path: &str, handler: RequestHandler) -> &Router {
+        self.define_route(&HTTPMethod::DELETE, path.to_string(), handler)
+    }
+
+    pub fn options(&self, path: &str, handler: RequestHandler) -> &Router {
+        self.define_route(&HTTPMethod::OPTIONS, path.to_string(), handler)
+    }
+
+    pub fn head(&self, path: &str, handler: RequestHandler) -> &Router {
+        self.define_route(&HTTPMethod::HEAD, path.to_string(), handler)
+    }
+
+    pub fn define_route(&self, method: &HTTPMethod, mut path: String, handler: RequestHandler) -> &Router {
         let mut current_node = Arc::clone(&self.root);
 
         let mut path_params = HashMap::new();
@@ -62,12 +90,16 @@ impl Router {
             current_node = next_node;
         }
 
+        let mut handler_map = current_node.handler.write().unwrap();
+
+        handler_map.insert(method.to_string(), handler);
+
         current_node.params.write().unwrap().extend(path_params);
 
-        *current_node.handler.write().unwrap() = Some(handler);
+        self
     }
 
-    pub fn get_handler(&self, path: &str) -> (Option<RequestHandler>, HashMap<String, i32>) {
+    pub fn get_handler(&self, method: &HTTPMethod, path: &str) -> (Option<RequestHandler>, HashMap<String, i32>) {
         let mut current_node = Arc::clone(&self.root);
 
         for mut segment in path.split('/') {
@@ -102,10 +134,13 @@ impl Router {
 
                 return (None, params);
             }
-        };
-
+        }
+        
         let params = current_node.params.read().unwrap().clone();
-        let handler = *current_node.handler.read().unwrap();
+
+        let handler_map = current_node.handler.read().unwrap();
+
+        let handler = handler_map.get(&method.to_string()).cloned();
 
         (handler, params)
     }

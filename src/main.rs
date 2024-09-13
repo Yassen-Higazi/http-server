@@ -2,7 +2,8 @@ use crate::options::Options;
 use crate::response::{ContentType, HttpCode, Response};
 use clap::Parser;
 use http_server::HttpServer;
-use std::io::ErrorKind;
+use std::fs::OpenOptions;
+use std::io::{ErrorKind, Write};
 use std::path::PathBuf;
 
 mod request;
@@ -19,8 +20,8 @@ async fn main() {
 
     let server = HttpServer::new(args);
 
-    server
-        .define_route("/", |r| {
+    server.router
+        .get("/", |r| {
             let mut response = Response::from(r);
 
             response.set_body("Hello, World!".to_string(), None);
@@ -30,7 +31,7 @@ async fn main() {
             Ok(response)
         })
 
-        .define_route("/user-agent", |r| {
+        .get("/user-agent", |r| {
             let mut body = String::new();
 
             let agent = r.headers.get("User-Agent");
@@ -48,7 +49,7 @@ async fn main() {
             Ok(response)
         })
 
-        .define_route("/echo/:content", |req| {
+        .get("/echo/:content", |req| {
             let mut response = Response::from(req);
 
             if let Some(content) = req.params.get("content") {
@@ -62,11 +63,11 @@ async fn main() {
             Ok(response)
         })
 
-        .define_route("/files/:filename", |req| {
+        .get("/files/:filename", |req| {
             let mut response = Response::from(req);
 
             if let Some(filename) = req.params.get("filename") {
-                let file_path = PathBuf::from(&req.options.files_directory).join(filename);
+                let file_path = PathBuf::from(&req.server_options.files_directory).join(filename);
 
                 println!("{:?}", file_path);
 
@@ -87,6 +88,58 @@ async fn main() {
 
                                 response.set_json_body(content);
                             }
+                            _ => {
+                                eprintln!("{:?}", err);
+
+                                response.status = HttpCode::InternalServerError;
+
+                                let content = String::from("{ \"message\": \"Internal Server Error\" }".to_string());
+
+                                response.set_json_body(content);
+                            }
+                        }
+                    }
+                };
+            } else {
+                response.set_body(String::from("{ \"message\": \"Param filename is required\" }"), None);
+                response.status = HttpCode::BadRequest;
+            }
+
+            Ok(response)
+        })
+
+        .post("/files/:filename", |req| {
+            let mut response = Response::from(req);
+
+            if let Some(filename) = req.params.get("filename") {
+                let file_path = PathBuf::from(&req.server_options.files_directory).join(filename);
+
+                println!("{:?}", file_path);
+
+                let result = OpenOptions::new().write(true).create(true).open(file_path);
+
+                match result {
+                    Ok(mut file) => {
+                        match file.write(&req.body.as_bytes()) {
+                            Ok(_) => {
+                                response.status = HttpCode::Created;
+                            }
+                            Err(err) => {
+                                eprintln!("{:?}", err);
+
+                                response.status = HttpCode::InternalServerError;
+
+                                let content = String::from("{ \"message\": \"Internal Server Error\" }".to_string());
+
+                                response.set_json_body(content);
+                            }
+                        }
+                    }
+
+                    Err(err) => {
+                        println!("{:?}", err);
+
+                        match err.kind() {
                             _ => {
                                 eprintln!("{:?}", err);
 
