@@ -1,4 +1,5 @@
 use crate::constants::CRLF;
+use crate::options::Options;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -6,6 +7,7 @@ pub struct Request {
     pub url: String,
     pub method: String,
     pub protocol: String,
+    pub options: Options,
     pub host: Option<String>,
     pub protocol_version: String,
     pub query: HashMap<String, String>,
@@ -16,7 +18,7 @@ pub struct Request {
 }
 
 impl Request {
-    pub fn new(request: String) -> Self {
+    pub fn new(request: String, options: Options) -> Self {
         let params: HashMap<String, String> = HashMap::new();
         let mut headers: HashMap<String, String> = HashMap::new();
 
@@ -63,6 +65,7 @@ impl Request {
             params,
             method,
             headers,
+            options,
             protocol,
             protocol_version,
             host: final_host,

@@ -24,13 +24,21 @@ impl HttpCode {
 
 #[derive(Debug)]
 pub enum ContentType {
+    Json,
     TextPlain,
+    Multipart,
+    UrlEncoded,
+    OctetStream,
 }
 
 impl ContentType {
     pub fn text(&self) -> &str {
         match self {
+            ContentType::Multipart => "multipart ",
             ContentType::TextPlain => "text/plain",
+            ContentType::Json => "application/json",
+            ContentType::OctetStream => "application/octet-stream",
+            ContentType::UrlEncoded => "application/x-www-form-urlencoded",
         }
     }
 }
@@ -46,7 +54,6 @@ pub struct Response {
     pub status: HttpCode,
     pub protocol: String,
     pub protocol_version: String,
-    pub content_type: ContentType,
     pub headers: HashMap<String, String>,
 }
 
@@ -64,7 +71,6 @@ impl Response {
             protocol,
             protocol_version,
             status: HttpCode::Ok,
-            content_type: ContentType::TextPlain,
         }
     }
 
@@ -97,7 +103,7 @@ impl Response {
         self.set_header(content_type_name, content_type.to_string());
     }
 
-    fn set_header(&mut self, header_name: String, header_value: String) {
+    pub fn set_header(&mut self, header_name: String, header_value: String) {
         // let header = self.headers.get(header_name.as_str());
         //
         // match header {

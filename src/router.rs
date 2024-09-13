@@ -2,8 +2,8 @@ use crate::request::Request;
 use crate::response::Response;
 
 use regex::Regex;
-use std::error::Error;
 use std::collections::HashMap;
+use std::error::Error;
 use std::sync::{Arc, RwLock};
 
 pub type RequestHandler = fn(&Request) -> Result<Response, Box<dyn Error>>;
@@ -35,7 +35,7 @@ impl Router {
         let mut path_params = HashMap::new();
 
         for capture in self.params_regex.captures_iter(&path) {
-            match  capture.get(1) {
+            match capture.get(1) {
                 None => {}
                 Some(cap) => {
                     path_params.insert(cap.as_str().to_string(), (cap.start() - 1) as i32);
@@ -67,7 +67,7 @@ impl Router {
         *current_node.handler.write().unwrap() = Some(handler);
     }
 
-    pub fn get_handler(&self, path: &str) -> (Option<RequestHandler>, HashMap<String, i32>){
+    pub fn get_handler(&self, path: &str) -> (Option<RequestHandler>, HashMap<String, i32>) {
         let mut current_node = Arc::clone(&self.root);
 
         for mut segment in path.split('/') {
@@ -76,7 +76,7 @@ impl Router {
             }
 
             let next_node = {
-                let mut children = current_node.children.read().unwrap();
+                let children = current_node.children.read().unwrap();
 
                 match children.get(segment) {
                     Some(route) => {
@@ -85,7 +85,7 @@ impl Router {
 
                     None => {
                         match children.get("*") {
-                            None => {None}
+                            None => { None }
                             Some(route) => {
                                 Some(Arc::clone(route))
                             }

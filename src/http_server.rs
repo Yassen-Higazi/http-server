@@ -1,22 +1,20 @@
-use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
-
+use crate::options::Options;
 use crate::request::Request;
 use crate::response::{HttpCode, Response};
 use crate::router::{RequestHandler, Router};
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 
 pub struct HttpServer {
-    pub port: u16,
-    pub host: String,
     router: Router,
+    options: Options,
 }
 
 impl HttpServer {
-    pub fn new(host: &str, port: u16) -> HttpServer {
+    pub fn new(options: Options) -> HttpServer {
         Self {
-            port,
+            options,
             router: Router::new(),
-            host: host.to_string(),
         }
     }
 
@@ -27,9 +25,9 @@ impl HttpServer {
     }
 
     pub fn listen(self) {
-        let listener = TcpListener::bind(format!("{}:{}", &self.host, &self.port)).unwrap();
+        let listener = TcpListener::bind(format!("{}:{}", &self.options.host, &self.options.port)).unwrap();
 
-        println!("Server is listening on {}:{}", self.host, self.port);
+        println!("Server is listening on {}:{}", self.options.host, self.options.port);
 
         // let pool = ThreadPool::new(500);
 
@@ -43,14 +41,15 @@ impl HttpServer {
                 // })
 
                 let router = self.router.clone();
+                let options = self.options.clone();
 
-                tokio::spawn(async move { handle_connection(&mut stream, router).await; });
+                tokio::spawn(async move { handle_connection(&mut stream, router, options).await; });
             }
         }
     }
 }
 
-async fn handle_connection(_stream: &mut TcpStream, router: Router) {
+async fn handle_connection(_stream: &mut TcpStream, router: Router, options: Options) {
     println!("accepted new connection from {}", _stream.peer_addr().unwrap());
 
     let mut buffer = vec![0u8; 1024];
@@ -62,9 +61,9 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router) {
     let is_http = request_str.contains("HTTP/1.");
 
     if is_http {
-        let mut request = Request::new(request_str);
+        let mut request = Request::new(request_str, options);
 
-        let (handler, mut params) = router.get_handler(request.url.as_str());
+        let (handler, params) = router.get_handler(request.url.as_str());
 
         let mut response = match handler {
             None => {
