@@ -2,6 +2,10 @@ use crate::options::Options;
 use crate::request::Request;
 use crate::response::{HttpCode, Response};
 use crate::router::Router;
+
+use flate2::write::GzEncoder;
+use flate2::Compression;
+
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
@@ -103,9 +107,17 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router, options: Opt
             }
         };
 
-        if let Some(compression) = request.headers.get("Accept-Encoding") {
-            if compression.contains("gzip") {
-                response.set_header("Content-Encoding".to_string(), "gzip".to_string());
+        if !response.body.is_empty() {
+            if let Some(compression) = request.headers.get("Accept-Encoding") {
+                let accepted_compressions = compression.split(',').map(|s| s.trim()).collect::<Vec<&str>>();
+
+                if accepted_compressions.contains(&"gzip") {
+                    let body = encode_gzip(&response.body);
+
+                    response.set_body(body, None);
+
+                    response.set_header("Content-Encoding".to_string(), "gzip".to_string());
+                }
             }
         }
 
@@ -115,4 +127,14 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router, options: Opt
     }
 
     _stream.write_all(String::from("HTTP/1.1 500 Internal Server Error/\r\n\r\n").as_bytes()).expect("Failed to send Response to client");
+}
+
+fn encode_gzip(content: &Vec<u8>) -> Vec<u8> {
+    let mut e = GzEncoder::new(Vec::new(), Compression::default());
+
+    e.write_all(content).expect("Failed to Compress Data");
+
+    let compressed_bytes = e.finish().expect("Failed to finish compression");
+
+    compressed_bytes
 }

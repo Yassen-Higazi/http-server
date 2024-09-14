@@ -52,7 +52,7 @@ impl Display for ContentType {
 }
 
 pub struct Response {
-    pub body: String,
+    pub body: Vec<u8>,
     pub status: HttpCode,
     pub protocol: String,
     pub protocol_version: String,
@@ -61,7 +61,7 @@ pub struct Response {
 
 impl Response {
     pub fn new(protocol: String, protocol_version: String) -> Response {
-        let body = String::new();
+        let body = Vec::new();
         let mut headers = HashMap::new();
 
         headers.insert("Content-Length".to_string(), "0".to_string());
@@ -76,7 +76,7 @@ impl Response {
         }
     }
 
-    pub fn write_to(&mut self, stream: &mut TcpStream, body: Option<String>) {
+    pub fn write_to(&mut self, stream: &mut TcpStream, body: Option<Vec<u8>>) {
         if body.is_some() {
             self.set_body(body.unwrap(), None);
         }
@@ -85,10 +85,14 @@ impl Response {
     }
 
     pub fn set_json_body(&mut self, body: String) {
-        self.set_body(body, Some(ContentType::Json))
+        self.set_body_string(body, Some(ContentType::Json))
     }
 
-    pub fn set_body(&mut self, body: String, content_type_option: Option<ContentType>) {
+    pub fn set_body_string(&mut self, body: String, content_type: Option<ContentType>) {
+        self.set_body(body.as_bytes().to_owned(), content_type)
+    }
+
+    pub fn set_body(&mut self, body: Vec<u8>, content_type_option: Option<ContentType>) {
         self.body = body;
 
         let content_length = self.body.len();
@@ -121,19 +125,19 @@ impl Response {
     }
 
     pub fn to_http_format(&self) -> Vec<u8> {
-        let mut res = String::new();
+        let mut res: Vec<u8> = Vec::new();
 
-        res.push_str(&format!("{}/{} {}\r\n", self.protocol, self.protocol_version, self.status.to_status_line()));
+        res.extend_from_slice(&format!("{}/{} {}\r\n", self.protocol, self.protocol_version, self.status.to_status_line()).as_bytes());
 
         for (key, value) in &self.headers {
-            res.push_str(&format!("{}: {}\r\n", key, value));
+            res.extend_from_slice(&format!("{}: {}\r\n", key, value).as_bytes());
         }
 
-        res.push_str("\r\n");
+        res.extend_from_slice("\r\n".as_bytes());
 
-        res.push_str(&self.body);
+        res.extend(&self.body);
 
-        res.into_bytes()
+        res
     }
 }
 

@@ -24,7 +24,7 @@ async fn main() {
         .get("/", |r| {
             let mut response = Response::from(r);
 
-            response.set_body("Hello, World!".to_string(), None);
+            response.set_body_string("Hello, World!".to_string(), None);
 
             response.status = HttpCode::Ok;
 
@@ -42,7 +42,7 @@ async fn main() {
 
             let mut response = Response::from(r);
 
-            response.set_body(body, None);
+            response.set_body_string(body, None);
 
             response.status = HttpCode::Ok;
 
@@ -53,10 +53,10 @@ async fn main() {
             let mut response = Response::from(req);
 
             if let Some(content) = req.params.get("content") {
-                response.set_body(content.clone(), None);
+                response.set_body_string(content.clone(), None);
                 response.status = HttpCode::Ok;
             } else {
-                response.set_body(String::from("{ \"message\": \"Param content is required\" }"), None);
+                response.set_body_string(String::from("{ \"message\": \"Param content is required\" }"), None);
                 response.status = HttpCode::BadRequest;
             }
 
@@ -74,7 +74,7 @@ async fn main() {
                 match std::fs::read_to_string(file_path) {
                     Ok(content) => {
                         response.status = HttpCode::Ok;
-                        response.set_body(content, Some(ContentType::OctetStream));
+                        response.set_body_string(content, Some(ContentType::OctetStream));
                     }
 
                     Err(err) => {
@@ -101,7 +101,7 @@ async fn main() {
                     }
                 };
             } else {
-                response.set_body(String::from("{ \"message\": \"Param filename is required\" }"), None);
+                response.set_body_string(String::from("{ \"message\": \"Param filename is required\" }"), None);
                 response.status = HttpCode::BadRequest;
             }
 
@@ -153,7 +153,7 @@ async fn main() {
                     }
                 };
             } else {
-                response.set_body(String::from("{ \"message\": \"Param filename is required\" }"), None);
+                response.set_body_string(String::from("{ \"message\": \"Param filename is required\" }"), None);
                 response.status = HttpCode::BadRequest;
             }
 
