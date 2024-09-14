@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::sync::{Arc, RwLock};
 
-pub type RequestHandler = fn(&Request) -> Result<Response, Box<dyn Error>>;
+pub type RequestHandler = fn(&Request, &mut Response) -> Result<(), Box<dyn Error>>;
 
 #[derive(Default, Debug)]
 struct TrieNode {
@@ -135,7 +135,7 @@ impl Router {
                 return (None, params);
             }
         }
-        
+
         let params = current_node.params.read().unwrap().clone();
 
         let handler_map = current_node.handler.read().unwrap();

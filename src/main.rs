@@ -1,6 +1,4 @@
-use crate::options::Options;
-use crate::response::{ContentType, HttpCode, Response};
-use clap::Parser;
+use crate::response::{ContentType, HttpCode};
 use http_server::HttpServer;
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Write};
@@ -16,56 +14,46 @@ mod options;
 
 #[tokio::main]
 async fn main() {
-    let args = Options::parse();
-
-    let server = HttpServer::new(args);
+    let server = HttpServer::new();
 
     server.router
-        .get("/", |r| {
-            let mut response = Response::from(r);
+        .get("/", |req, res| {
+            res.set_body_string("Hello, World!".to_string(), None);
 
-            response.set_body_string("Hello, World!".to_string(), None);
+            res.status = HttpCode::Ok;
 
-            response.status = HttpCode::Ok;
-
-            Ok(response)
+            Ok(())
         })
 
-        .get("/user-agent", |r| {
+        .get("/user-agent", |req, res| {
             let mut body = String::new();
 
-            let agent = r.headers.get("User-Agent");
+            let agent = req.headers.get("User-Agent");
 
             if agent.is_some() {
                 body = agent.unwrap().to_string();
             }
 
-            let mut response = Response::from(r);
+            res.set_body_string(body, None);
 
-            response.set_body_string(body, None);
+            res.status = HttpCode::Ok;
 
-            response.status = HttpCode::Ok;
-
-            Ok(response)
+            Ok(())
         })
 
-        .get("/echo/:content", |req| {
-            let mut response = Response::from(req);
-
+        .get("/echo/:content", |req, res| {
             if let Some(content) = req.params.get("content") {
-                response.set_body_string(content.clone(), None);
-                response.status = HttpCode::Ok;
+                res.set_body_string(content.clone(), None);
+                res.status = HttpCode::Ok;
             } else {
-                response.set_body_string(String::from("{ \"message\": \"Param content is required\" }"), None);
-                response.status = HttpCode::BadRequest;
+                res.set_body_string(String::from("{ \"message\": \"Param content is required\" }"), None);
+                res.status = HttpCode::BadRequest;
             }
 
-            Ok(response)
+            Ok(())
         })
 
-        .get("/files/:filename", |req| {
-            let mut response = Response::from(req);
-
+        .get("/files/:filename", |req, res| {
             if let Some(filename) = req.params.get("filename") {
                 let file_path = PathBuf::from(&req.server_options.files_directory).join(filename);
 
@@ -73,44 +61,42 @@ async fn main() {
 
                 match std::fs::read_to_string(file_path) {
                     Ok(content) => {
-                        response.status = HttpCode::Ok;
-                        response.set_body_string(content, Some(ContentType::OctetStream));
+                        res.status = HttpCode::Ok;
+                        res.set_body_string(content, Some(ContentType::OctetStream));
                     }
 
                     Err(err) => {
                         match err.kind() {
                             ErrorKind::NotFound => {
-                                response.status = HttpCode::NotFound;
+                                res.status = HttpCode::NotFound;
 
                                 let message = format!("File not found: {}", filename);
 
                                 let content = String::from("{ \"message\": \"".to_string() + message.as_str() + "\" }");
 
-                                response.set_json_body(content);
+                                res.set_json_body(content);
                             }
                             _ => {
                                 eprintln!("{:?}", err);
 
-                                response.status = HttpCode::InternalServerError;
+                                res.status = HttpCode::InternalServerError;
 
                                 let content = String::from("{ \"message\": \"Internal Server Error\" }".to_string());
 
-                                response.set_json_body(content);
+                                res.set_json_body(content);
                             }
                         }
                     }
                 };
             } else {
-                response.set_body_string(String::from("{ \"message\": \"Param filename is required\" }"), None);
-                response.status = HttpCode::BadRequest;
+                res.set_body_string(String::from("{ \"message\": \"Param filename is required\" }"), None);
+                res.status = HttpCode::BadRequest;
             }
 
-            Ok(response)
+            Ok(())
         })
 
-        .post("/files/:filename", |req| {
-            let mut response = Response::from(req);
-
+        .post("/files/:filename", |req, res| {
             if let Some(filename) = req.params.get("filename") {
                 let file_path = PathBuf::from(&req.server_options.files_directory).join(filename);
 
@@ -122,16 +108,16 @@ async fn main() {
                     Ok(mut file) => {
                         match file.write(&req.body.as_bytes()) {
                             Ok(_) => {
-                                response.status = HttpCode::Created;
+                                res.status = HttpCode::Created;
                             }
                             Err(err) => {
                                 eprintln!("{:?}", err);
 
-                                response.status = HttpCode::InternalServerError;
+                                res.status = HttpCode::InternalServerError;
 
                                 let content = String::from("{ \"message\": \"Internal Server Error\" }".to_string());
 
-                                response.set_json_body(content);
+                                res.set_json_body(content);
                             }
                         }
                     }
@@ -143,21 +129,21 @@ async fn main() {
                             _ => {
                                 eprintln!("{:?}", err);
 
-                                response.status = HttpCode::InternalServerError;
+                                res.status = HttpCode::InternalServerError;
 
                                 let content = String::from("{ \"message\": \"Internal Server Error\" }".to_string());
 
-                                response.set_json_body(content);
+                                res.set_json_body(content);
                             }
                         }
                     }
                 };
             } else {
-                response.set_body_string(String::from("{ \"message\": \"Param filename is required\" }"), None);
-                response.status = HttpCode::BadRequest;
+                res.set_body_string(String::from("{ \"message\": \"Param filename is required\" }"), None);
+                res.status = HttpCode::BadRequest;
             }
 
-            Ok(response)
+            Ok(())
         });
 
     server.listen();

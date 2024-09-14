@@ -6,6 +6,7 @@ use crate::router::Router;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 
+use clap::Parser;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
@@ -15,7 +16,9 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub fn new(options: Options) -> HttpServer {
+    pub fn new() -> HttpServer {
+        let options = Options::parse();
+
         Self {
             options,
             router: Router::new(),
@@ -60,16 +63,13 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router, options: Opt
 
     if is_http {
         let mut request = Request::new(request_str, options);
+        let mut response = Response::from(&request);
 
         let (handler, params) = router.get_handler(&request.method, request.url.as_str());
 
-        let mut response = match handler {
+        match handler {
             None => {
-                let mut res = Response::new("HTTP".to_string(), "1.1".to_string());
-
-                res.status = HttpCode::NotFound;
-
-                res
+                response.status = HttpCode::NotFound;
             }
 
             Some(handler) => {
@@ -87,21 +87,15 @@ async fn handle_connection(_stream: &mut TcpStream, router: Router, options: Opt
                     request.params.insert(key.clone(), param);
                 }
 
-                let result = handler(&request);
+                let result = handler(&request, &mut response);
 
                 match result {
-                    Ok(res) => {
-                        res
-                    }
+                    Ok(_) => {}
 
                     Err(err) => {
                         eprintln!("{}", err);
 
-                        let mut res = Response::new("HTTP".to_string(), "1.1".to_string());
-
-                        res.status = HttpCode::InternalServerError;
-
-                        res
+                        response.status = HttpCode::InternalServerError;
                     }
                 }
             }
