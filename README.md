@@ -1,38 +1,45 @@
 [![progress-banner](https://backend.codecrafters.io/progress/http-server/b03eacf4-200b-4382-a86f-31a42765ec3e)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
 
-This is a starting point for Rust solutions to the
-["Build Your Own HTTP server" Challenge](https://app.codecrafters.io/courses/http-server/overview).
+## My take on [codecrafters.io](https://codecrafters.io) Build Your own http server challenge using Rust
 
-[HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) is the
-protocol that powers the web. In this challenge, you'll build a HTTP/1.1 server
-that is capable of serving multiple clients.
-
-Along the way you'll learn about TCP servers,
-[HTTP request syntax](https://www.w3.org/Protocols/rfc2616/rfc2616-sec5.html),
-and more.
+> [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) is the
+> protocol that powers the web. In this challenge, you'll build a HTTP/1.1 server
+> that is capable of serving multiple clients.
 
 **Note**: If you'RE viewing this repo on GitHub, head over to
 [codecrafters.io](https://codecrafters.io) to try the challenge.
 
-# Passing the first stage
+## Run
 
-The entry point for your HTTP server implementation is in `src/main.rs`. Study
-and uncomment the relevant code, and push your changes to pass the first stage:
+To run the application simply run
 
-```sh
-git commit -am "pass 1st stage" # any msg
-git push origin master
+```shell
+./run.sh
 ```
 
-Time to move on to the next stage!
+And you can test it by calling "http://localhost:4221"
 
-# Stage 2 & beyond
+```shell
+ curl -v http://localhost:4221/
+```
 
-Note: This section is for stages 2 and beyond.
+### new Routes
 
-1. Ensure you have `cargo (1.80)` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `src/main.rs`. This command compiles your Rust project, so it might be slow
-   the first time you run it. Subsequent runs will be fast.
-1. Commit your changes and run `git push origin master` to submit your solution
-   to CodeCrafters. Test output will be streamed to your terminal.
+To define new routes edit the code in the [main file](src/main.rs) and use `server.router` to define new routes
+
+example:
+
+```rust
+
+server.router.get("/echo/:content", | req, res| {
+   if let Some(content) = req.params.get("content") {
+      res.set_body_string(content.clone(), None);
+      res.status = HttpCode::Ok;
+   } else {
+      res.set_body_string(String::from("{ \"message\": \"Param content is required\" }"), None);
+      res.status = HttpCode::BadRequest;
+   }
+   
+   Ok(())
+});
+```
